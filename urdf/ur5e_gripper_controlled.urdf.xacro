@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<!--
+Drop-in alternative to ur_robot_driver's plain ur.urdf.xacro (rsp.launch.py's
+description_file default) that also exports a Robotiq 2F-85 gripper's ros2_control
+hardware interface on the arm's tool0. Pass this as start_robot.launch.py's
+description_file, with use_gripper:=true, to bring up an arm + gripper together (see
+teleop_leader_follower_arm/launch/dual_arm_teleop.launch.py's use_gripper argument).
+
+IMPORTANT: this file is also the description used, unmodified, by tcp_controller.launch.py
+(via "rsp.launch copy.py") for this cell's proven, working single-arm + gripper setup -
+that launch pair only ever passes robot_ip, ur_type, kinematics_parameters_file,
+use_mock_hardware, mock_sensor_commands and headless_mode, so every OTHER xacro:arg below
+keeps a default that reproduces this file's previous (pre-leader/follower) behavior
+exactly when left unset - tf_prefix defaults to "$(arg ur_type)_" (not empty),
+safety_limits defaults to false (ur_robot's own upstream default), and com_port defaults
+to /tmp/ttyUR (this cell's actual gripper serial bridge, set up by tcp_controller.launch.py's
+tool_communication_node - NOT a generic placeholder). Change any of those defaults only
+with that caller in mind too.
+-->
+<robot name="ur5e_robot_cell" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find ur5e_robot_cell_description)/urdf/ur5e_gripper_macro.xacro"/>
+  <xacro:include filename="$(find ur_robot_driver)/urdf/ur.ros2_control.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/2f_85.ros2_control.xacro"/>
+
+  <xacro:arg name="ur_type" default="ur5e"/>
+  <!-- Defaults to "$(arg ur_type)_" (not empty) - this is what every joint/link in this
+  URDF was always implicitly named before tf_prefix existed as its own argument (see the
+  IMPORTANT note above), and ros2_controllers.yaml's tf_prefix substitution for
+  tcp_controller.launch.py's single-arm setup already independently defaults to that same
+  "ur5e_" - only override this explicitly for a multi-robot setup (e.g. "follower_"). -->
+  <xacro:arg name="tf_prefix" default="$(arg ur_type)_"/>
+  <xacro:arg name="robot_ip" default="0.0.0.0"/>
+
+  <xacro:arg name="joint_limit_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+
+  <!-- false (not true) to match ur_robot/ur_ros2_control's own upstream default - this
+  file never exposed safety_limits before, so tcp_controller.launch.py's setup has always
+  effectively run with it off. -->
+  <xacro:arg name="safety_limits" default="false"/>
+  <xacro:arg name="safety_pos_margin" default="0.15"/>
+  <xacro:arg name="safety_k_position" default="20"/>
+
+  <xacro:arg name="script_filename" default="$(find ur_client_library)/resources/external_control.urscript"/>
+  <xacro:arg name="output_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"/>
+  <xacro:arg name="input_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"/>
+
+  <xacro:arg name="use_mock_hardware" default="false"/>
+  <xacro:arg name="mock_sensor_commands" default="false"/>
+  <xacro:arg name="headless_mode" default="false"/>
+
+  <xacro:arg name="use_tool_communication" default="false"/>
+  <xacro:arg name="tool_parity" default="0"/>
+  <xacro:arg name="tool_baud_rate" default="115200"/>
+  <xacro:arg name="tool_stop_bits" default="1"/>
+  <xacro:arg name="tool_rx_idle_chars" default="1.5"/>
+  <xacro:arg name="tool_tx_idle_chars" default="3.5"/>
+  <xacro:arg name="tool_device_name" default="/tmp/ttyUR"/>
+  <xacro:arg name="tool_tcp_port" default="54321"/>
+  <xacro:arg name="tool_voltage" default="0"/>
+
+  <xacro:arg name="reverse_ip" default="0.0.0.0"/>
+  <xacro:arg name="script_command_port" default="50004"/>
+  <xacro:arg name="reverse_port" default="50001"/>
+  <xacro:arg name="script_sender_port" default="50002"/>
+  <xacro:arg name="trajectory_port" default="50003"/>
+
+  <!-- Serial device the Robotiq gripper is bridged on. Defaults to /tmp/ttyUR - this
+       cell's actual wiring: tcp_controller.launch.py's tool_communication_node bridges
+       the UR's internal RS-485 tool port to that local pty, and the gripper driver talks
+       to it there (NOT a generic USB adapter path). A second robot cell on the same host
+       needs a distinct device here, same as the UR driver's own reverse/script/
+       trajectory ports above. -->
+  <xacro:arg name="com_port" default="/tmp/ttyUR"/>
+
+  <link name="world" />
+
+  <xacro:ur5e_robot_cell
+    parent="world"
+    ur_type="$(arg ur_type)"
+    tf_prefix="$(arg tf_prefix)"
+    joint_limits_parameters_file="$(arg joint_limit_parameters_file)"
+    kinematics_parameters_file="$(arg kinematics_parameters_file)"
+    physical_parameters_file="$(arg physical_parameters_file)"
+    visual_parameters_file="$(arg visual_parameters_file)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+    use_fake_hardware="$(arg use_mock_hardware)"
+    com_port="$(arg com_port)"
+  >
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </xacro:ur5e_robot_cell>
+
+  <xacro:ur_ros2_control
+    name="$(arg ur_type)"
+    tf_prefix="$(arg tf_prefix)"
+    kinematics_parameters_file="$(arg kinematics_parameters_file)"
+    robot_ip="$(arg robot_ip)"
+    script_filename="$(arg script_filename)"
+    output_recipe_filename="$(arg output_recipe_filename)"
+    input_recipe_filename="$(arg input_recipe_filename)"
+    use_mock_hardware="$(arg use_mock_hardware)"
+    mock_sensor_commands="$(arg mock_sensor_commands)"
+    headless_mode="$(arg headless_mode)"
+    use_tool_communication="$(arg use_tool_communication)"
+    tool_voltage="$(arg tool_voltage)"
+    tool_parity="$(arg tool_parity)"
+    tool_baud_rate="$(arg tool_baud_rate)"
+    tool_stop_bits="$(arg tool_stop_bits)"
+    tool_rx_idle_chars="$(arg tool_rx_idle_chars)"
+    tool_tx_idle_chars="$(arg tool_tx_idle_chars)"
+    tool_device_name="$(arg tool_device_name)"
+    tool_tcp_port="$(arg tool_tcp_port)"
+    reverse_ip="$(arg reverse_ip)"
+    script_command_port="$(arg script_command_port)"
+    reverse_port="$(arg reverse_port)"
+    script_sender_port="$(arg script_sender_port)"
+    trajectory_port="$(arg trajectory_port)"
+  />
+
+  <!-- Separate <ros2_control> hardware component from the arm's above - ros2_control_node
+  combines every such block found in one URDF into a single controller_manager resource,
+  so this doesn't need (and must not have) the same name="..." as the arm's. prefix=""
+  matches ros2_controllers.yaml's robotiq_gripper_controller joint name
+  (robotiq_85_left_knuckle_joint, no tf_prefix) - fine because each robot instance
+  (leader/follower, or this cell's single arm) gets its own namespaced
+  controller_manager/URDF, so there's no cross-robot collision despite the shared
+  unprefixed joint name. -->
+  <xacro:robotiq_gripper_ros2_control
+    name="robotiq_gripper"
+    prefix=""
+    use_fake_hardware="$(arg use_mock_hardware)"
+    com_port="$(arg com_port)" />
+
+</robot>

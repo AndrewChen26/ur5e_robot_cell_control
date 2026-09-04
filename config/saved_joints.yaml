@@ -1,0 +1,37 @@
+A message was lost!!!
+	total count change:1
+	total count: 1---
+header:
+  stamp:
+    sec: 1758047371
+    nanosec: 276409154
+  frame_id: ''
+name:
+- ur5e_elbow_joint
+- ur5e_shoulder_lift_joint
+- ur5e_shoulder_pan_joint
+- ur5e_wrist_1_joint
+- ur5e_wrist_2_joint
+- ur5e_wrist_3_joint
+position:
+- -2.09199595451355
+- -1.2012308996966858
+- -2.2718752066241663
+- -0.855879084472992
+- -1.6657593886004847
+- -0.7231162230121058
+velocity:
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- -0.0
+- -0.0
+effort:
+- 2.234727382659912
+- 0.5029112100601196
+- -0.016657821834087372
+- 0.07929949462413788
+- 0.07524064928293228
+- 0.0955309271812439
+---

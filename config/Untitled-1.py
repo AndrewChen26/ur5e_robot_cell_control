@@ -1,0 +1,23 @@
+{
+    'ur5e_base_link': {'parent': 'world', 'jid': 0, 'joint_name': 'ur5e_base_joint'},
+    'ur5e_base_link_inertia': {'parent': 'ur5e_base_link', 'jid': 1, 'joint_name': 'ur5e_base_link-base_link_inertia'},
+    'ur5e_shoulder_link': {'parent': 'ur5e_base_link_inertia', 'jid': 2, 'joint_name': 'ur5e_shoulder_pan_joint'},
+    'ur5e_upper_arm_link': {'parent': 'ur5e_shoulder_link', 'jid': 3, 'joint_name': 'ur5e_shoulder_lift_joint'},
+    'ur5e_forearm_link': {'parent': 'ur5e_upper_arm_link', 'jid': 4, 'joint_name': 'ur5e_elbow_joint'},
+    'ur5e_wrist_1_link': {'parent': 'ur5e_forearm_link', 'jid': 5, 'joint_name': 'ur5e_wrist_1_joint'},
+    'ur5e_wrist_2_link': {'parent': 'ur5e_wrist_1_link', 'jid': 6, 'joint_name': 'ur5e_wrist_2_joint'},
+    'ur5e_wrist_3_link': {'parent': 'ur5e_wrist_2_link', 'jid': 7, 'joint_name': 'ur5e_wrist_3_joint'},
+    'ur5e_ft_frame': {'parent': 'ur5e_wrist_3_link', 'jid': 8, 'joint_name': 'ur5e_wrist_3_link-ft_frame'},
+    'ur5e_base': {'parent': 'ur5e_base_link', 'jid': 9, 'joint_name': 'ur5e_base_link-base_fixed_joint'},
+    'ur5e_flange': {'parent': 'ur5e_wrist_3_link', 'jid': 10, 'joint_name': 'ur5e_wrist_3-flange'},
+    'ur5e_tool0': {'parent': 'ur5e_flange', 'jid': 11, 'joint_name': 'ur5e_flange-tool0'},
+    'robotiq_85_base_link': {'parent': 'ur5e_tool0', 'jid': 12, 'joint_name': 'robotiq_85_base_joint'},
+    'robotiq_85_left_knuckle_link': {'parent': 'robotiq_85_base_link', 'jid': 13, 'joint_name': 'robotiq_85_left_knuckle_joint'},
+    'robotiq_85_right_knuckle_link': {'parent': 'robotiq_85_base_link', 'jid': 14, 'joint_name': 'robotiq_85_right_knuckle_joint'},
+    'robotiq_85_left_finger_link': {'parent': 'robotiq_85_left_knuckle_link', 'jid': 15, 'joint_name': 'robotiq_85_left_finger_joint'},
+    'robotiq_85_right_finger_link': {'parent': 'robotiq_85_right_knuckle_link', 'jid': 16, 'joint_name': 'robotiq_85_right_finger_joint'},
+    'robotiq_85_left_inner_knuckle_link': {'parent': 'robotiq_85_base_link', 'jid': 17, 'joint_name': 'robotiq_85_left_inner_knuckle_joint'},
+    'robotiq_85_right_inner_knuckle_link': {'parent': 'robotiq_85_base_link', 'jid': 18, 'joint_name': 'robotiq_85_right_inner_knuckle_joint'},
+    'robotiq_85_left_finger_tip_link': {'parent': 'robotiq_85_left_finger_link', 'jid': 19, 'joint_name': 'robotiq_85_left_finger_tip_joint'},
+    'robotiq_85_right_finger_tip_link': {'parent': 'robotiq_85_right_finger_link', 'jid': 20, 'joint_name': 'robotiq_85_right_finger_tip_joint'}
+}
