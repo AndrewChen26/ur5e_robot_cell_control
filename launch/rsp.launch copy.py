@@ -30,6 +30,7 @@
 # Author: Felix Exner
 
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
@@ -85,7 +86,9 @@ def generate_launch_description():
             headless_mode,
         ]
     )
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {
+        "robot_description": ParameterValue(robot_description_content, value_type=str)
+    }
 
     declared_arguments = []
     # UR specific arguments
@@ -128,7 +131,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_mock_hardware",
-            default_value="true",
+            default_value="false",
             description="Start robot with mock hardware mirroring command to its states.",
         )
     )

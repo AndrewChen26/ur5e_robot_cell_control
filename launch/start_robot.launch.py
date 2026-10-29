@@ -31,6 +31,9 @@ def generate_launch_description():
     use_gripper = LaunchConfiguration("use_gripper")
     description_file = LaunchConfiguration("description_file")
     com_port = LaunchConfiguration("com_port")
+    use_tool_communication = LaunchConfiguration("use_tool_communication")
+    tool_device_name = LaunchConfiguration("tool_device_name")
+    tool_voltage = LaunchConfiguration("tool_voltage")
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -139,6 +142,41 @@ def generate_launch_description():
             "script/trajectory ports below.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_tool_communication",
+            default_value="false",
+            description="Bridge this robot's internal RS-485 tool port to a local pty "
+            "(tool_device_name) via ur_robot_driver's tool_communication_node. This is "
+            "how tcp_controller.launch.py's proven single-arm+gripper setup connects its "
+            "Robotiq gripper - set this true alongside use_gripper:=true and com_port == "
+            "tool_device_name if this robot's gripper is wired the same way (as opposed "
+            "to a plain external USB-to-serial adapter, which needs neither).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tool_device_name",
+            default_value="/tmp/ttyUR",
+            description="Local pty tool_communication_node bridges this robot's tool "
+            "port to. Only meaningful with use_tool_communication:=true - and then it "
+            "must match com_port exactly, since that's the device the gripper driver "
+            "actually opens. Must be distinct per robot cell running on the same host "
+            "at the same time.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tool_voltage",
+            default_value="0",
+            description="Voltage supplied on the robot's tool connector. 0 is a "
+            "conservative default that won't power anything; a Robotiq gripper wired "
+            "through the tool port (use_tool_communication:=true) needs this set to "
+            "24 or it gets no power at all and never responds - confirmed on real "
+            "hardware (every Modbus command reads back 0 bytes until this is set). "
+            "tcp_controller.launch.py's proven single-arm+gripper setup defaults to 24.",
+        )
+    )
     # These are local (PC-side) TCP ports the driver listens on for the robot to connect
     # back to - they default to the same values as ur_robot_driver's own launch file,
     # which is fine for one robot. Running a second robot's driver on the same machine
@@ -232,6 +270,9 @@ def generate_launch_description():
                     "use_gripper": use_gripper,
                     "description_file": description_file,
                     "com_port": com_port,
+                    "use_tool_communication": use_tool_communication,
+                    "tool_device_name": tool_device_name,
+                    "tool_voltage": tool_voltage,
                 }.items(),
             ),
         ]

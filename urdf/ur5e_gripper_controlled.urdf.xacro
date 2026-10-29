@@ -97,6 +97,7 @@ with that caller in mind too.
 
   <xacro:ur_ros2_control
     name="$(arg ur_type)"
+    ur_type="$(arg ur_type)"
     tf_prefix="$(arg tf_prefix)"
     kinematics_parameters_file="$(arg kinematics_parameters_file)"
     robot_ip="$(arg robot_ip)"

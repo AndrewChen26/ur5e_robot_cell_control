@@ -35,6 +35,7 @@ from launch.actions import (
     GroupAction,
     IncludeLaunchDescription,
     OpaqueFunction,
+    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
@@ -78,6 +79,7 @@ def launch_setup(context):
     use_tool_communication = LaunchConfiguration("use_tool_communication")
     tool_device_name = LaunchConfiguration("tool_device_name")
     tool_tcp_port = LaunchConfiguration("tool_tcp_port")
+    tool_voltage = LaunchConfiguration("tool_voltage")
 
     control_node = Node(
         package="controller_manager",
@@ -139,6 +141,28 @@ def launch_setup(context):
         condition=UnlessCondition(use_mock_hardware),
     )
 
+    # Controllers controller_stopper_node never touches, regardless of whether it sees
+    # the robot's "External Control" program as running - everything else it activates/
+    # deactivates in lockstep with that. robotiq_gripper_controller belongs here too when
+    # a gripper is in play: unlike arm motion controllers, there's no "stale queued
+    # motion after E-stop/pause" risk for it (the gripper's own activation state is
+    # separate, Modbus-driven, not URScript-driven) - and leaving it off this list is a
+    # real bug, not just a missed optimization: confirmed on real hardware that a single
+    # brief robot_program_running blip early in startup can deactivate it and never
+    # reactivate it, leaving the gripper silently unresponsive to every command with no
+    # error anywhere. tcp_controller.launch.py's own proven single-arm+gripper setup
+    # already includes robotiq_gripper_controller here for exactly this reason.
+    consistent_controllers = [
+        "io_and_status_controller",
+        "force_torque_sensor_broadcaster",
+        "joint_state_broadcaster",
+        "speed_scaling_state_broadcaster",
+        "tcp_pose_broadcaster",
+        "ur_configuration_controller",
+    ]
+    if use_gripper.perform(context) == "true":
+        consistent_controllers.append("robotiq_gripper_controller")
+
     controller_stopper_node = Node(
         package="ur_robot_driver",
         executable="controller_stopper_node",
@@ -149,16 +173,7 @@ def launch_setup(context):
         parameters=[
             {"headless_mode": headless_mode},
             {"joint_controller_active": activate_joint_controller},
-            {
-                "consistent_controllers": [
-                    "io_and_status_controller",
-                    "force_torque_sensor_broadcaster",
-                    "joint_state_broadcaster",
-                    "speed_scaling_state_broadcaster",
-                    "tcp_pose_broadcaster",
-                    "ur_configuration_controller",
-                ]
-            },
+            {"consistent_controllers": consistent_controllers},
         ],
     )
 
@@ -246,11 +261,52 @@ def launch_setup(context):
             # launch file is included from.
             "description_file": description_file,
             "com_port": com_port,
+            # Also forwarded explicitly, for the same reason - this was previously
+            # missing entirely, meaning rsp.launch.py always used its own conservative
+            # default (0) no matter what this launch file's own tool_voltage argument
+            # was set to. Confirmed on real hardware: with 0, a Robotiq gripper wired
+            # through the tool port gets no power and every Modbus command it's sent
+            # reads back 0 bytes - not a comms/timing problem, the gripper simply isn't
+            # powered. tcp_controller.launch.py's proven single-arm+gripper setup runs
+            # with this at 24.
+            "tool_voltage": tool_voltage,
+            # Forced "false", not left to fall through: "use_tool_communication" is also
+            # this launch file's own argument (gating tool_communication_node below), and
+            # LaunchConfiguration values leak across IncludeLaunchDescription boundaries
+            # unless overridden explicitly (see start_robot.launch.py's use_gripper for
+            # the same gotcha, found the hard way). The proven tcp_controller.launch.py
+            # setup never sets this on the arm's own xacro at all - tool_communication_node
+            # (a standalone bridge) is what actually owns the serial connection, not the
+            # UR driver's own internal tool-comm handling - so this must always be false
+            # here regardless of whatever this launch file's own use_tool_communication
+            # (below) is set to.
+            "use_tool_communication": "false",
         }.items(),
     )
 
+    # With use_gripper + use_tool_communication, control_node's robotiq_driver hardware
+    # plugin opens com_port (a pty) as part of its own startup - but tool_communication_node
+    # is what creates that pty (and bridges it to the robot's tool port over TCP) in the
+    # first place, and node start order here doesn't guarantee either side of that bridge
+    # is actually ready yet. Losing that race throws inside control_node's resource
+    # manager and takes its whole controller_manager down - arm included, since they
+    # share one process (confirmed on real hardware: every spawner then times out with
+    # "Could not contact service .../list_controllers", and the arm doesn't respond to
+    # anything either). tcp_controller.launch.py's single-arm+gripper setup hit and fixed
+    # this exact race with a 1s head start (see its own delayed_control_node) - but that
+    # was tuned for bringing up one robot at a time. Bringing up two at once (leader +
+    # follower here) contends for more CPU/network at startup, and 1s wasn't enough:
+    # confirmed on real hardware, the gripper driver's own connection attempt was still
+    # failing ("Reached maximum retries") a good ~2.5s after control_node started, with
+    # tool_communication_node's bridge only having begun setting up ~1.3s prior. 5s gives
+    # real margin instead of matching the single-arm case exactly.
+    if use_gripper.perform(context) == "true" and use_tool_communication.perform(context) == "true":
+        control_node_entry = TimerAction(period=5.0, actions=[control_node])
+    else:
+        control_node_entry = control_node
+
     nodes_to_start = [
-        control_node,
+        control_node_entry,
         dashboard_client_node,
         robot_state_helper_node,
         tool_communication_node,
